@@ -14,6 +14,8 @@ from django.utils.decorators import method_decorator
 from django.forms.models import model_to_dict
 from django.conf import settings
 
+from .models import CurriculumDay
+
 
 message_max_length = 640
 
@@ -130,15 +132,31 @@ def post_today(fbid):
     # print "END SEC"
     # for day in cal.itermonthdays(2017, 9):
     #     print day
-    if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
-        response_text = "\n\n".join(curriculum[today.isoformat()])
+
+    # if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
+    #     response_text = "\n\n".join(curriculum[today.isoformat()])
+    # else:
+    #     response_text = "Сьогодні пар немає"
+
+    if CurriculumDay.objects.filter(day=today).exists():
+        day = CurriculumDay.objects.get(day=today)
+        for subj in day.subjects.all():
+            response_text = "{0}\n\n{1} {2}\n{3}\t\t{4}\t\t{5}".format(
+                response_text,
+                subj.time.strftime("%H:%M"),
+                subj.subject,
+                subj.type,
+                subj.auditory,
+                subj.teacher
+            )
     else:
-        response_text = "Сьогодні пар немає"
+        response_text = "\n\nСьогодні пар немає"
+
     response_msg = json.dumps(
         {
             "recipient": {"id": fbid},
             "message": {
-                "text": "Пари на {0} {1}\n\n{2}".format(
+                "text": "Пари на {0} {1}{2}".format(
                     weekdays[today.timetuple().tm_wday],
                     today.strftime("%d.%m.%y"),
                     response_text),
@@ -181,15 +199,31 @@ def post_nextday(fbid):
     response_text = ""
     post_message_url = 'https://graph.facebook.com/v2.6/me/messages'
     today = date.today().replace(day=date.today().day+1)
-    if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
-        response_text = "\n\n".join(curriculum[today.isoformat()])
+
+    # if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
+    #     response_text = "\n\n".join(curriculum[today.isoformat()])
+    # else:
+    #     response_text = "В цей день пар немає"
+
+    if CurriculumDay.objects.filter(day=today).exists():
+        day = CurriculumDay.objects.get(day=today)
+        for subj in day.subjects.all():
+            response_text = "{0}\n\n{1} {2}\n{3}\t\t{4}\t\t{5}".format(
+                response_text,
+                subj.time.strftime("%H:%M"),
+                subj.subject,
+                subj.type,
+                subj.auditory,
+                subj.teacher
+            )
     else:
-        response_text = "В цей день пар немає"
+        response_text = "\n\nВ цей день пар немає"
+
     response_msg = json.dumps(
         {
             "recipient": {"id": fbid},
             "message": {
-                "text": "Пари на {0} {1}\n\n{2}".format(
+                "text": "Пари на {0} {1}{2}".format(
                     weekdays[today.timetuple().tm_wday],
                     today.strftime("%d.%m.%y"),
                     response_text),
@@ -232,30 +266,71 @@ def post_week(fbid):
     response_text = ""
     post_message_url = 'https://graph.facebook.com/v2.6/me/messages'
     today = date.today()
+
+    # if today.timetuple().tm_wday > 4:
+    #     response_text = "На цьому тижні більше немає пар"
+    # else:
+    #     if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
+    #         response_text = "\n\n".join(curriculum[today.isoformat()])
+    #         response_text = "Пари на {0} {1}\n\n{2}".format(
+    #             weekdays[today.timetuple().tm_wday],
+    #             today.strftime("%d.%m.%y"),
+    #             response_text)
+    #     while today.timetuple().tm_wday < 4:
+    #         today = today.replace(day=today.day+1)
+    #         if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
+    #             curri = "\n\n".join(curriculum[today.isoformat()])
+    #             response_text = "{0}\n\n\nПари на {1} {2}\n\n{3}".format(
+    #                 response_text,
+    #                 weekdays[today.timetuple().tm_wday],
+    #                 today.strftime("%d.%m.%y"),
+    #                 curri)
+    #         else:
+    #             response_text = "{0}\n\n\nПари на {1} {2}\n\n{3}".format(
+    #                 response_text,
+    #                 weekdays[today.timetuple().tm_wday],
+    #                 today.strftime("%d.%m.%y"),
+    #                 "В цей день пар немає")
+
     if today.timetuple().tm_wday > 4:
         response_text = "На цьому тижні більше немає пар"
     else:
-        if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
-            response_text = "\n\n".join(curriculum[today.isoformat()])
-            response_text = "Пари на {0} {1}\n\n{2}".format(
-                weekdays[today.timetuple().tm_wday],
-                today.strftime("%d.%m.%y"),
-                response_text)
+        if CurriculumDay.objects.filter(day=today).exists():
+            day = CurriculumDay.objects.get(day=today)
+            for subj in day.subjects.all():
+                response_text = "Пари на {0} {1}\n\n{2} {3}\n{4}\t\t{5}\t\t{6}\n{7}".format(
+                    weekdays[today.timetuple().tm_wday],    #0
+                    today.strftime("%d.%m.%y"),             #1
+                    subj.time.strftime("%H:%M"),            #2
+                    subj.subject,                           #3
+                    subj.type,                              #4
+                    subj.auditory,                          #5
+                    subj.teacher,                           #6
+                    response_text                           #7
+                )
         while today.timetuple().tm_wday < 4:
             today = today.replace(day=today.day+1)
-            if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
-                curri = "\n\n".join(curriculum[today.isoformat()])
-                response_text = "{0}\n\n\nПари на {1} {2}\n\n{3}".format(
-                    response_text,
-                    weekdays[today.timetuple().tm_wday],
-                    today.strftime("%d.%m.%y"),
-                    curri)
+            if CurriculumDay.objects.filter(day=today).exists():
+                day = CurriculumDay.objects.get(day=today)
+                for subj in day.subjects.all():
+                    response_text = "{0}\n\n\nПари на {1} {2}\n\n{3} {4}\n{5}\t\t{6}\t\t{7}".format(
+                        response_text,                          #0
+                        weekdays[today.timetuple().tm_wday],    #1
+                        today.strftime("%d.%m.%y"),             #2
+                        subj.time.strftime("%H:%M"),            #3
+                        subj.subject,                           #4
+                        subj.type,                              #5
+                        subj.auditory,                          #6
+                        subj.teacher                            #7
+                    )
             else:
                 response_text = "{0}\n\n\nПари на {1} {2}\n\n{3}".format(
                     response_text,
                     weekdays[today.timetuple().tm_wday],
                     today.strftime("%d.%m.%y"),
                     "В цей день пар немає")
+
+
     messages = response_text.split('\n\n\n')
     for message in messages:
         response_msg = json.dumps(
@@ -308,27 +383,63 @@ def post_nextweek(fbid):
         today = today.replace(day=today.day+1)
         print today
 
-    if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
-        response_text = "\n\n".join(curriculum[today.isoformat()])
-        response_text = "Пари на {0} {1}\n\n{2}".format(
-            weekdays[today.timetuple().tm_wday],
-            today.strftime("%d.%m.%y"),
-            response_text)
+    # if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
+    #     response_text = "\n\n".join(curriculum[today.isoformat()])
+    #     response_text = "Пари на {0} {1}\n\n{2}".format(
+    #         weekdays[today.timetuple().tm_wday],
+    #         today.strftime("%d.%m.%y"),
+    #         response_text)
+    # while today.timetuple().tm_wday < 4:
+    #     today = today.replace(day=today.day+1)
+    #     if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
+    #         curri = "\n\n".join(curriculum[today.isoformat()])
+    #         response_text = "{0}\n\n\nПари на {1} {2}\n\n{3}".format(
+    #             response_text,
+    #             weekdays[today.timetuple().tm_wday],
+    #             today.strftime("%d.%m.%y"),
+    #             curri)
+    #     else:
+    #         response_text = "{0}\n\n\nПари на {1} {2}\n\n{3}".format(
+    #             response_text,
+    #             weekdays[today.timetuple().tm_wday],
+    #             today.strftime("%d.%m.%y"),
+    #             "В цей день пар немає")
+
+    if CurriculumDay.objects.filter(day=today).exists():
+        day = CurriculumDay.objects.get(day=today)
+        for subj in day.subjects.all():
+            response_text = "Пари на {0} {1}\n\n{2} {3}\n{4}\t\t{5}\t\t{6}\n{7}".format(
+                weekdays[today.timetuple().tm_wday],    #0
+                today.strftime("%d.%m.%y"),             #1
+                subj.time.strftime("%H:%M"),            #2
+                subj.subject,                           #3
+                subj.type,                              #4
+                subj.auditory,                          #5
+                subj.teacher,                           #6
+                response_text                           #7
+            )
     while today.timetuple().tm_wday < 4:
         today = today.replace(day=today.day+1)
-        if today.isoformat() in curriculum and today.timetuple().tm_wday < 5:
-            curri = "\n\n".join(curriculum[today.isoformat()])
-            response_text = "{0}\n\n\nПари на {1} {2}\n\n{3}".format(
-                response_text,
-                weekdays[today.timetuple().tm_wday],
-                today.strftime("%d.%m.%y"),
-                curri)
+        if CurriculumDay.objects.filter(day=today).exists():
+            day = CurriculumDay.objects.get(day=today)
+            for subj in day.subjects.all():
+                response_text = "{0}\n\n\nПари на {1} {2}\n\n{3} {4}\n{5}\t\t{6}\t\t{7}".format(
+                    response_text,                          #0
+                    weekdays[today.timetuple().tm_wday],    #1
+                    today.strftime("%d.%m.%y"),             #2
+                    subj.time.strftime("%H:%M"),            #3
+                    subj.subject,                           #4
+                    subj.type,                              #5
+                    subj.auditory,                          #6
+                    subj.teacher                            #7
+                )
         else:
             response_text = "{0}\n\n\nПари на {1} {2}\n\n{3}".format(
                 response_text,
                 weekdays[today.timetuple().tm_wday],
                 today.strftime("%d.%m.%y"),
                 "В цей день пар немає")
+
     messages = response_text.split('\n\n\n')
     for message in messages:
         response_msg = json.dumps(
